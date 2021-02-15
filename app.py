@@ -19,6 +19,9 @@ for t in ['mensual','trimestral','anual']:
     data.index = data.index.rename('Date')
     all_options[t] = data.columns.tolist()
 
+def fix_anual_dates(date):
+    return str(date) + '-01-01'
+
 data = pd.read_excel('data/sample_data.xlsx', sheet_name = 'mensual').T
 data.columns = data.loc['Indicador'].values
 data.drop('Indicador', inplace = True)
@@ -115,8 +118,9 @@ def update_figure(tiempo, variable, radiotrend):
 	data.columns = data.loc['Indicador'].values
 	data.drop('Indicador', inplace = True)
 	#data = data.reset_index().rename(columns = {'index':'Date'})
-	if tiempo != 'anual':
-		data.index = pd.to_datetime(data.index).rename('Fecha')
+	if tiempo == 'anual':
+		data.index = [fix_anual_dates(x) for x in data.index]
+	data.index = pd.to_datetime(data.index).rename('Fecha')
 	data = data.convert_dtypes()
 	if radiotrend == ['trend']:
 
@@ -157,8 +161,10 @@ def update_figure2(tiempo, variable, searesid):
 	data.columns = data.loc['Indicador'].values
 	data.drop('Indicador', inplace = True)
 	#data = data.reset_index().rename(columns = {'index':'Date'})
-	if tiempo != 'anual':
-		data.index = pd.to_datetime(data.index).rename('Fecha')
+	if tiempo == 'anual':
+		data.index = [fix_anual_dates(x) for x in data.index]
+
+	data.index = pd.to_datetime(data.index).rename('Fecha')
 	data = data.convert_dtypes()
 	decomposed = sm.tsa.seasonal_decompose(data[variable].astype('float32'))
 
