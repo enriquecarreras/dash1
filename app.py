@@ -72,19 +72,19 @@ app.layout = html.Div(children=[
 									                html.H2(),
 									                html.Div(
 									                	[dcc.Checklist(
-									                		id = 'radio-seasonal-resid',
+									                		id = 'searesid',
 															options=[
 															    {'label': 'Seasonal', 'value': 'seasonal'},
 															    {'label': 'Residuals', 'value': 'resid'}
-															    ], value = ['seasonal']
+															    ], value = ['seasonal', 'resid']
 															)])
 									                ])])
 											]),
                                     html.Div(className='eight columns div-for-charts bg-grey',   # Define the right element
-                                    children = [html.H2(),
-                                    html.H2(),
-                                    dcc.Graph(id='graph'),
-                                    dcc.Graph(id='seasonal-resid')],
+                                    children = [
+                                    html.Div([
+                                                                                                            dcc.Graph(id='graph')]),
+                                    html.Div([dcc.Graph(id='seasonal-resid-plot')],style={'backgroundColor': '#31302F'})],
                                     )  
                                     ])
                                 ])
@@ -139,11 +139,49 @@ def update_figure(tiempo, variable, radiotrend):
 
 		return fig.update_layout(
 			{'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-	        'paper_bgcolor': 'rgba(0, 0, 0, 0)'})
+	        'paper_bgcolor': 'rgba(0, 0, 0, 0)', "height": 400, 'title':'Variable principal con tendencia'})
 	else:
 		return px.line(data, x= data.index, y=variable, render_mode="webgl", template='plotly_dark').update_layout(
 			{'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-	        'paper_bgcolor': 'rgba(0, 0, 0, 0)'})
+	        'paper_bgcolor': 'rgba(0, 0, 0, 0)', "height": 400, 'title':'Variable principal'})
+
+@app.callback(
+    Output('seasonal-resid-plot', 'figure'),
+    [Input("tiempo", "value"),
+    Input("variable", "value"),
+    Input("searesid", "value")])
+
+def update_figure2(tiempo, variable, searesid):
+	data = pd.read_excel('data/sample_data.xlsx', sheet_name = tiempo).T
+	data.columns = data.loc['Indicador'].values
+	data.drop('Indicador', inplace = True)
+	#data = data.reset_index().rename(columns = {'index':'Date'})
+	data.index = pd.to_datetime(data.index).rename('Fecha')
+	data = data.convert_dtypes()
+	decomposed = sm.tsa.seasonal_decompose(data[variable].astype('float32'))
+
+	fig = go.Figure()
+	
+	for col in searesid:
+		if col == 'seasonal':
+	    	
+			fig.add_trace(go.Scatter(
+		    x=data.index,
+		    y=decomposed.seasonal,
+		    name= 'Seasonal'))
+
+		if col == 'resid':
+	    	
+			fig.add_trace(go.Scatter(
+		    x=data.index,
+		    y=decomposed.resid,
+		    name= 'Residuals'))
+
+		fig.layout.template = 'plotly_dark'
+	
+	return fig.update_layout(
+		{'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+        'paper_bgcolor': 'rgba(0, 0, 0, 0)', "height": 250, 'title':'Componentes estacionales'})
 
 # Run the app
 if __name__ == '__main__':
