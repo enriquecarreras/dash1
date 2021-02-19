@@ -39,8 +39,7 @@ app.layout = html.Div(children=[
                                 children=[
                                     html.Div(className='four columns div-user-controls',   # Define the left element
                                     children = [
-											    html.H2('Dashboard - Bolivia'),
-											    #html.P('''Bolivia (aimara: Wuliwya; guaraní: Mborívia; quechua: Buliwya), oficialmente Estado Plurinacional de Bolivia,12​13​ es un país soberano situado en la región centro-occidental de América del Sur, políticamente se constituye como un estado plurinacional, descentralizado con autonomías. Está organizado en nueve departamentos. Su capital constitucional es Sucre,14​ sede del órgano judicial; la ciudad de La Paz es la sede de los órganos ejecutivo, legislativo y electoral.'''),
+											    html.H2('Dashboard - Macroeconomic data'),
 
 											    html.Div(
 											    	[
