@@ -5,32 +5,22 @@ import dash_core_components as dcc
 import plotly.express as px
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
-import statsmodels.api as sm
+import dash_bootstrap_components as dbc
 
 
+
+data = pd.read_csv('data/dashapp.csv')
 
 all_options = {}
-for t in ['mensual','trimestral','anual']:
-    data = pd.read_excel('data/sample_data.xlsx', sheet_name = t).T
-    data.columns = data.loc['Indicador'].values
-    data.drop('Indicador', inplace = True)
-    #data = data.reset_index().rename(columns = {'index':'Date'})
-
-    data.index = data.index.rename('Date')
+for t in ['Observed','OLS','FB']:
+    data = data[data['Kind']==t]
     all_options[t] = data.columns.tolist()
 
-def fix_anual_dates(date):
-    return str(date) + '-01-01'
-
-data = pd.read_excel('data/sample_data.xlsx', sheet_name = 'mensual').T
-data.columns = data.loc['Indicador'].values
-data.drop('Indicador', inplace = True)
-#data = data.reset_index().rename(columns = {'index':'Date'})
-
-data.index = pd.to_datetime(data.index).rename('Fecha')
-data = data.convert_dtypes()
 # Initialise the app
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
+                meta_tags=[{'name': 'viewport',
+                            'content': 'width=device-width, initial-scale=1.0'}]
+                )
 server = app.server
 
 # Define the app
@@ -44,12 +34,12 @@ app.layout = html.Div(children=[
 											    html.Div(
 											    	[
 											    	html.Div(className='div-for-dropdown',
-											    		children=[html.P("Rango temporal"),
+											    		children=[html.P("Kind"),
 									                	dcc.Dropdown(
-													        id='tiempo', clearable=False,
-													        value= 'mensual', options= [
+													        id='Kind', clearable=True,
+													        value= 'Observed', options= [
 													            {'label': c, 'value': c}
-													            for c in ['mensual','trimestral','anual']]),
+													            for c in ['Observed','OLS','FB']]),
 
 									                	html.H2(),
 											            
@@ -59,135 +49,38 @@ app.layout = html.Div(children=[
 													        value= data.columns.tolist()[0], options= [
 													            {'label': c, 'value': c}
 													            for c in data.columns.tolist()]),
-									                html.H2(),
-									                html.H2(),
-									                html.P('Seasonal decomposition'),
-									                html.Div(
-									                	[dcc.Checklist(
-									                		id = 'radiotrend',
-															options=[
-															    {'label': 'Trend', 'value': 'trend'}
-															    ],
-															)]),
-									                html.H2(),
-									                html.H2(),
-									                html.Div(
-									                	[dcc.Checklist(
-									                		id = 'searesid',
-															options=[
-															    {'label': 'Seasonal', 'value': 'seasonal'},
-															    {'label': 'Residuals', 'value': 'resid'}
-															    ], value = ['seasonal', 'resid']
-															)])
+									                
 									                ])])
 											]),
                                     html.Div(className='eight columns div-for-charts bg-grey',   # Define the right element
                                     children = [
                                     html.Div([
                                                                                                             dcc.Graph(id='graph')]),
-                                    html.Div([dcc.Graph(id='seasonal-resid-plot')],style={'backgroundColor': '#31302F'})],
+                                    style={'backgroundColor': '#31302F'})],
                                     )  
                                     ])
                                 ])
 # Define callback to update graph
 @app.callback(
 	Output('variable','options'),
-	Input('tiempo','value'))
+	Input('tiempo','Number'))
 
-def set_variable_options(tiempo):
-    return [{'label': i, 'value': i} for i in all_options[tiempo]]
+def set_variable_options(Kind):
+    return [{'label': i, 'value': i} for i in all_options[Kind]]
 
 @app.callback(
-    Output('variable', 'value'),
+    Output('variable', 'Number'),
     Input('variable', 'options'))
 
 def set_variable_value(available_options):
-    return available_options[0]['value']
+    return available_options[0]['Number']
 
 @app.callback(
     Output('graph', 'figure'),
-    [Input("tiempo", "value"),
-    Input("variable", "value"),
-    Input("radiotrend", "value")]
+    [Input("Kind", "Number"),
+    Input("variable", "Number")]
 )
 
-def update_figure(tiempo, variable, radiotrend):
-	data = pd.read_excel('data/sample_data.xlsx', sheet_name = tiempo).T
-	data.columns = data.loc['Indicador'].values
-	data.drop('Indicador', inplace = True)
-	#data = data.reset_index().rename(columns = {'index':'Date'})
-	if tiempo == 'anual':
-		data.index = [fix_anual_dates(x) for x in data.index]
-	data.index = pd.to_datetime(data.index).rename('Fecha')
-	data = data.convert_dtypes()
-	if radiotrend == ['trend']:
-
-		decomposed = sm.tsa.seasonal_decompose(data[variable].astype('float32'))
-
-		fig = go.Figure()
-
-		fig.add_trace(go.Scatter(
-		    x=data.index,
-		    y=data[variable],
-		    name= str(variable)
-		))
-
-		fig.add_trace(go.Scatter(
-		    x= data.index,
-		    y=decomposed.trend,
-		    name="Trend"
-		))
-
-		fig.layout.template = 'plotly_dark'
-
-		return fig.update_layout(
-			{'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-	        'paper_bgcolor': 'rgba(0, 0, 0, 0)', "height": 400, 'title':'Variable principal con tendencia'})
-	else:
-		return px.line(data, x= data.index, y=variable, render_mode="webgl", template='plotly_dark').update_layout(
-			{'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-	        'paper_bgcolor': 'rgba(0, 0, 0, 0)', "height": 400, 'title':'Variable principal'})
-
-@app.callback(
-    Output('seasonal-resid-plot', 'figure'),
-    [Input("tiempo", "value"),
-    Input("variable", "value"),
-    Input("searesid", "value")])
-
-def update_figure2(tiempo, variable, searesid):
-	data = pd.read_excel('data/sample_data.xlsx', sheet_name = tiempo).T
-	data.columns = data.loc['Indicador'].values
-	data.drop('Indicador', inplace = True)
-	#data = data.reset_index().rename(columns = {'index':'Date'})
-	if tiempo == 'anual':
-		data.index = [fix_anual_dates(x) for x in data.index]
-
-	data.index = pd.to_datetime(data.index).rename('Fecha')
-	data = data.convert_dtypes()
-	decomposed = sm.tsa.seasonal_decompose(data[variable].astype('float32'))
-
-	fig = go.Figure()
-	
-	for col in searesid:
-		if col == 'seasonal':
-	    	
-			fig.add_trace(go.Scatter(
-		    x=data.index,
-		    y=decomposed.seasonal,
-		    name= 'Seasonal'))
-
-		if col == 'resid':
-	    	
-			fig.add_trace(go.Scatter(
-		    x=data.index,
-		    y=decomposed.resid,
-		    name= 'Residuals'))
-
-		fig.layout.template = 'plotly_dark'
-	
-	return fig.update_layout(
-		{'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-        'paper_bgcolor': 'rgba(0, 0, 0, 0)', "height": 250, 'title':'Componentes estacionales'})
 
 # Run the app
 if __name__ == '__main__':
